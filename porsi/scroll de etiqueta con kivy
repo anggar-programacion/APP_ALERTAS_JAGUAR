@@ -1,0 +1,83 @@
+import jlrpy
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.uix.scrollview import ScrollView
+from datetime import datetime
+
+class AlarmApp(App):
+    def build(self):
+        self.alarms = None
+        layout = BoxLayout(orientation='vertical')
+
+        # Cambiar el tamaño del botón al 10% de la altura de la pantalla
+        button = Button(
+            text='Listar Alarmas y Guardar en Archivo',
+            size_hint=(1, 0.1)  # 10% de la altura de la pantalla
+        )
+        button.bind(on_press=self.list_alarms_and_save)
+        self.label = Label(
+            size_hint=(1, 0.1),
+            text='Presiona el botón para listar las alarmas y guardar en un archivo.')
+        self.label2 = Label(
+            size_hint=(1, None),
+            text='',
+            markup=True  # Para procesar el marcado de texto (negritas, etc.)
+        )
+
+        # Redondear el botón
+        button.background_color = (0.4, 0.4, 1, 1)
+        button.border = (1, 0, 0, 0)
+        button.border_radius = [50]
+
+        # Encapsula la etiqueta self.label2 en un ScrollView
+        scroll_view = ScrollView(size_hint=(1, 1), scroll_y=0)
+        scroll_view.add_widget(self.label2)
+
+
+
+        # Etiquetas para los textos y ScrollView
+        layout.add_widget(scroll_view)
+        layout.add_widget(self.label)
+        layout.add_widget(button)
+
+        return layout
+
+    def list_alarms_and_save(self, instance):
+        # Autenticación usando nombre de usuario y contraseña
+        c = jlrpy.Connection('agarrido@agarquitectura.es', 'Quilla2502Quilla')
+        v = c.vehicles[0]
+        data = v.get_status()
+
+        # Extraer la clave lastUpdatedTimeVehicleAlert del diccionario original
+        last_updated_time_vehicle_alert = data.get("lastUpdatedTimeVehicleAlert", "")
+
+        # Extraer y ordenar las alertas por lastUpdatedTime
+        vehicle_alerts = data.get("vehicleAlerts", [])
+        sorted_alerts = sorted(vehicle_alerts, key=lambda x: x.get("lastUpdatedTime", ""))
+
+        alarm_text = ''
+        for alert in sorted_alerts:
+            key = alert.get("key", "")
+            value = alert.get("value", "")
+            active = alert.get("active", "")
+            last_updated_time = alert.get("lastUpdatedTime", "")
+            date, time = last_updated_time.split('T')
+            alarm_text += f"{date} {time} {key} {value} {active}\n"
+
+        # Generar un nombre de archivo con la fecha actual
+        current_datetime = datetime.now()
+        filename = f"Alertas_{current_datetime.strftime('%Y-%m-%d_%H-%M-%S')}.txt"
+        fecha=current_datetime.strftime('%Y-%m-%d_%H-%M-%S')
+        
+        with open(filename, 'w') as file:
+            file.write(f"ESTADO DE LAS ALERTAS A FECHA: {current_datetime.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            file.write(f"\n")
+            file.write(alarm_text)
+
+        self.label.text = f"Las alarmas se han guardado en el archivo: {filename}"
+        self.label2.text = "ESTADO DE LAS ALERTAS A FECHA: "+str(fecha)+"\n"+"\n"+alarm_text
+
+if __name__ == '__main__':
+    AlarmApp().run()
